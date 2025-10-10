@@ -31,7 +31,8 @@ def _compute_genre_counts(
     if df.empty:
         return pd.DataFrame()
 
-    genre_order: Iterable[str] = df["primary_genre"].value_counts().head(top_n).index.tolist()
+    genre_order: Iterable[str] = df["primary_genre"].value_counts().head(
+        top_n).index.tolist()
     if not genre_order:
         return pd.DataFrame()
 
@@ -39,8 +40,17 @@ def _compute_genre_counts(
     if filtered.empty:
         return pd.DataFrame()
 
-    # TODO: implement aggregation (groupby → size → unstack) and reindex with genre_order.
-    counts = pd.DataFrame()
+    counts = (
+        filtered
+        .groupby(['decade', 'primary_genre'])
+        .size()
+        .unstack(fill_value=0)
+        .reindex(columns=genre_order)
+        # .sort_index()
+        # .fillna(0)
+    )
+    counts.index.name = "decade"
+    counts.columns.name = None
     return counts
 
 
@@ -54,9 +64,13 @@ def _compute_genre_shares(counts: pd.DataFrame) -> pd.DataFrame:
     if counts.empty:
         return counts.copy()
 
-    # TODO: divide each row by its total (handle zero totals) and return the shares DataFrame.
-    shares = counts.copy()
-    # TODO: compute row totals, handle zeros, and divide each row before filling NaNs.
+    shares = (
+        counts
+        .apply(
+            lambda row: row if sum(row) == 0 else row / sum(row),
+            axis=1
+        )
+    )
     return shares.fillna(0)
 
 
@@ -108,7 +122,8 @@ def main() -> None:
 
     latest_decade = counts.index.max()
     if isinstance(latest_decade, str):
-        top_latest = counts.loc[latest_decade].sort_values(ascending=False).head(5)
+        top_latest = counts.loc[latest_decade].sort_values(
+            ascending=False).head(5)
         print(f"Top genres in {latest_decade}:")
         for genre, count in top_latest.items():
             share = shares.loc[latest_decade, genre]
