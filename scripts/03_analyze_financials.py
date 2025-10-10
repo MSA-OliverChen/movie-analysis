@@ -37,12 +37,25 @@ def _aggregate_budget_metrics(
     if df.empty:
         return pd.DataFrame()
 
-    categories = order or sorted(df["budget_category"].dropna().unique().tolist())
+    categories = order or sorted(
+        df["budget_category"].dropna().unique().tolist())
     if not categories:
         return pd.DataFrame()
 
-    # TODO: implement aggregation and return the reindexed DataFrame.
-    return pd.DataFrame()
+    metrics = (
+        df
+        .groupby('budget_category')
+        .agg(
+            mean_roi=('roi', 'mean'),
+            median_roi=('roi', 'median'),
+            share_profitable=('is_profitable', 'mean'),
+            avg_budget_millions=(
+                'budget_millions', lambda x: x.mean() / 1_000_000),
+            avg_profit_millions=('profit', lambda x: x.mean() / 1_000_000),
+            count=('id', 'count'),
+        )
+    )
+    return metrics.reindex(index=categories)
 
 
 def main() -> None:
